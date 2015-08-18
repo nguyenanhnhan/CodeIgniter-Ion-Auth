@@ -287,15 +287,16 @@ class Ion_auth
 	 * @return void
 	 * @author Mathew
 	 **/
-	public function register($username, $password, $email, $additional_data = array(), $group_ids = array()) //need to test email activation
+	public function register($identity, $password, $email, $additional_data = array(), $group_ids = array()) //need to test email activation
 	{
 		$this->ion_auth_model->trigger_events('pre_account_creation');
 
 		$email_activation = $this->config->item('email_activation', 'ion_auth');
+		
+		$id = $this->ion_auth_model->register($identity, $password, $email, $additional_data, $group_ids);
 
 		if (!$email_activation)
-		{
-			$id = $this->ion_auth_model->register($username, $password, $email, $additional_data, $group_ids);
+		{	
 			if ($id !== FALSE)
 			{
 				$this->set_message('account_creation_successful');
@@ -311,8 +312,6 @@ class Ion_auth
 		}
 		else
 		{
-			$id = $this->ion_auth_model->register($username, $password, $email, $additional_data, $group_ids);
-
 			if (!$id)
 			{
 				$this->set_error('account_creation_unsuccessful');
@@ -347,7 +346,7 @@ class Ion_auth
 			{
 				$this->ion_auth_model->trigger_events(array('post_account_creation', 'post_account_creation_successful', 'activation_email_successful'));
 				$this->set_message('activation_email_successful');
-					return $data;
+				return $data;
 			}
 			else
 			{
@@ -431,9 +430,8 @@ class Ion_auth
 	public function logged_in()
 	{
 		$this->ion_auth_model->trigger_events('logged_in');
-		$identity = $this->config->item('identity', 'ion_auth');
 
-		return (bool) $this->session->userdata($identity);
+		return (bool) $this->session->userdata('identity');
 	}
 
 	/**

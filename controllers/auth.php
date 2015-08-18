@@ -81,12 +81,12 @@ class Auth extends CI_Controller {
 			$this->data['message'] = (validation_errors()) ? validation_errors() : $this->session->flashdata('message');
 
 			$this->data['identity'] = array('name' => 'identity',
-				'id' => 'identity',
-				'type' => 'text',
+				'id'    => 'identity',
+				'type'  => 'text',
 				'value' => $this->form_validation->set_value('identity'),
 			);
 			$this->data['password'] = array('name' => 'password',
-				'id' => 'password',
+				'id'   => 'password',
 				'type' => 'password',
 			);
 
@@ -134,15 +134,15 @@ class Auth extends CI_Controller {
 				'type' => 'password',
 			);
 			$this->data['new_password'] = array(
-				'name' => 'new',
-				'id'   => 'new',
-				'type' => 'password',
+				'name'    => 'new',
+				'id'      => 'new',
+				'type'    => 'password',
 				'pattern' => '^.{'.$this->data['min_password_length'].'}.*$',
 			);
 			$this->data['new_password_confirm'] = array(
-				'name' => 'new_confirm',
-				'id'   => 'new_confirm',
-				'type' => 'password',
+				'name'    => 'new_confirm',
+				'id'      => 'new_confirm',
+				'type'    => 'password',
 				'pattern' => '^.{'.$this->data['min_password_length'].'}.*$',
 			);
 			$this->data['user_id'] = array(
@@ -179,9 +179,9 @@ class Auth extends CI_Controller {
 	function forgot_password()
 	{
 		// setting validation rules by checking wheather identity is username or email
-		if($this->config->item('identity', 'ion_auth') == 'username' )
+		if($this->config->item('identity', 'ion_auth') != 'email' )
 		{
-		   $this->form_validation->set_rules('email', $this->lang->line('forgot_password_username_identity_label'), 'required');
+		   $this->form_validation->set_rules('identity', $this->lang->line('forgot_password_identity_label'), 'required');
 		}
 		else
 		{
@@ -196,8 +196,8 @@ class Auth extends CI_Controller {
 				'id' => 'email',
 			);
 
-			if ( $this->config->item('identity', 'ion_auth') == 'username' ){
-				$this->data['identity_label'] = $this->lang->line('forgot_password_username_identity_label');
+			if ( $this->config->item('identity', 'ion_auth') != 'email' ){
+				$this->data['identity_label'] = $this->lang->line('forgot_password_identity_label');
 			}
 			else
 			{
@@ -210,26 +210,21 @@ class Auth extends CI_Controller {
 		}
 		else
 		{
-			// get identity from username or email
-			if ( $this->config->item('identity', 'ion_auth') == 'username' ){
-				$identity = $this->ion_auth->where('username', strtolower($this->input->post('email')))->users()->row();
-			}
-			else
-			{
-				$identity = $this->ion_auth->where('email', strtolower($this->input->post('email')))->users()->row();
-			}
-	            	if(empty($identity)) {
+			$identity_column = $this->config->item('identity','ion_auth');
+			$identity = $this->ion_auth->where($identity_column, $this->input->post('email'))->users()->row();
 
-	            		if($this->config->item('identity', 'ion_auth') == 'username')
+			if(empty($identity)) {
+
+	            		if($this->config->item('identity', 'ion_auth') != 'email')
 		            	{
-                                   $this->ion_auth->set_message('forgot_password_username_not_found');
+		            		$this->ion_auth->set_error('forgot_password_identity_not_found');
 		            	}
 		            	else
 		            	{
-		            	   $this->ion_auth->set_message('forgot_password_email_not_found');
+		            	   $this->ion_auth->set_error('forgot_password_email_not_found');
 		            	}
 
-		                $this->session->set_flashdata('message', $this->ion_auth->messages());
+		                $this->session->set_flashdata('message', $this->ion_auth->errors());
                 		redirect("auth/forgot_password", 'refresh');
             		}
 
@@ -278,13 +273,13 @@ class Auth extends CI_Controller {
 				$this->data['new_password'] = array(
 					'name' => 'new',
 					'id'   => 'new',
-				'type' => 'password',
+					'type' => 'password',
 					'pattern' => '^.{'.$this->data['min_password_length'].'}.*$',
 				);
 				$this->data['new_password_confirm'] = array(
-					'name' => 'new_confirm',
-					'id'   => 'new_confirm',
-					'type' => 'password',
+					'name'    => 'new_confirm',
+					'id'      => 'new_confirm',
+					'type'    => 'password',
 					'pattern' => '^.{'.$this->data['min_password_length'].'}.*$',
 				);
 				$this->data['user_id'] = array(
@@ -753,10 +748,10 @@ class Auth extends CI_Controller {
 		$readonly = $this->config->item('admin_group', 'ion_auth') === $group->name ? 'readonly' : '';
 
 		$this->data['group_name'] = array(
-			'name'  => 'group_name',
-			'id'    => 'group_name',
-			'type'  => 'text',
-			'value' => $this->form_validation->set_value('group_name', $group->name),
+			'name'    => 'group_name',
+			'id'      => 'group_name',
+			'type'    => 'text',
+			'value'   => $this->form_validation->set_value('group_name', $group->name),
 			$readonly => $readonly,
 		);
 		$this->data['group_description'] = array(
@@ -794,14 +789,14 @@ class Auth extends CI_Controller {
 		}
 	}
 
-	function _render_page($view, $data=null, $render=false)
+	function _render_page($view, $data=null, $returnhtml=false)//I think this makes more sense
 	{
 
 		$this->viewdata = (empty($data)) ? $this->data: $data;
 
-		$view_html = $this->load->view($view, $this->viewdata, $render);
+		$view_html = $this->load->view($view, $this->viewdata, $returnhtml);
 
-		if (!$render) return $view_html;
+		if ($returnhtml) return $view_html;//This will return html on 3rd argument being true
 	}
 
 }
