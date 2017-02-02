@@ -165,7 +165,7 @@ class Ion_auth_model extends CI_Model
 	{
 		parent::__construct();
 		$this->load->database();
-		$this->load->config('ion_auth', TRUE);
+		$this->config->load('ion_auth', TRUE);
 		$this->load->helper('cookie');
 		$this->load->helper('date');
 		$this->lang->load('ion_auth');
@@ -1638,11 +1638,6 @@ class Ion_auth_model extends CI_Model
 		// delete user from users table should be placed after remove from group
 		$this->db->delete($this->tables['users'], array('id' => $id));
 
-		// if user does not exist in database then it returns FALSE else removes the user from groups
-		if ($this->db->affected_rows() <= 0)
-		{
-		    return FALSE;
-		}
 
 		if ($this->db->trans_status() === FALSE)
 		{
@@ -1810,7 +1805,7 @@ class Ion_auth_model extends CI_Model
 		// get the user
 		$this->trigger_events('extra_where');
 		$query = $this->db->select($this->identity_column.', id, email, last_login')
-		                  ->where($this->identity_column, get_cookie($this->config->item('identity_cookie_name', 'ion_auth')))
+		                  ->where($this->identity_column, urldecode(get_cookie($this->config->item('identity_cookie_name', 'ion_auth'))))
 		                  ->where('remember_code', get_cookie($this->config->item('remember_cookie_name', 'ion_auth')))
 		                  ->limit(1)
 		    			  ->order_by('id', 'desc')
