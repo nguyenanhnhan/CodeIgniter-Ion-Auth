@@ -517,6 +517,11 @@ class Ion_auth_model extends CI_Model
 			$this->set_error('deactivate_unsuccessful');
 			return FALSE;
 		}
+                elseif($this->ion_auth->logged_in() && $this->user()->row()->id == $id)
+                {
+                        $this->set_error('deactivate_current_user_unsuccessful');
+                        return FALSE;
+                }
 
 		$activation_code       = sha1(md5(microtime()));
 		$this->activation_code = $activation_code;
@@ -1022,6 +1027,51 @@ class Ion_auth_model extends CI_Model
 		return FALSE;
 	}
 
+    /**
+     * recheck_session verifies if the session should be rechecked according to
+     * the configuration item recheck_timer. If it does, then it will check if the user is still active
+     * @return bool
+     */
+	public function recheck_session()
+    {
+        $recheck = (null !== $this->config->item('recheck_timer', 'ion_auth')) ? $this->config->item('recheck_timer', 'ion_auth') : 0;
+
+        if($recheck!==0)
+        {
+            $last_login = $this->session->userdata('last_check');
+            if($last_login+$recheck < time())
+            {
+                $query = $this->db->select('id')
+                    ->where(array($this->identity_column=>$this->session->userdata('identity'),'active'=>'1'))
+                    ->limit(1)
+                    ->order_by('id', 'desc')
+                    ->get($this->tables['users']);
+                if ($query->num_rows() === 1)
+                {
+                    $this->session->set_userdata('last_check',time());
+                }
+                else
+                {
+                    $this->trigger_events('logout');
+
+                    $identity = $this->config->item('identity', 'ion_auth');
+
+                    if (substr(CI_VERSION, 0, 1) == '2')
+                    {
+                        $this->session->unset_userdata( array($identity => '', 'id' => '', 'user_id' => '') );
+                    }
+                    else
+                    {
+                        $this->session->unset_userdata( array($identity, 'id', 'user_id') );
+                    }
+                    return false;
+                }
+            }
+        }
+
+        return (bool) $this->session->userdata('identity');
+    }
+
 	/**
 	 * is_max_login_attempts_exceeded
 	 * Based on code from Tank Auth, by Ilya Konyukhov (https://github.com/ilkon/Tank-Auth)
@@ -1164,15 +1214,11 @@ class Ion_auth_model extends CI_Model
 	{
 		$this->trigger_events('like');
 
-		if (!is_array($like))
-		{
-			$like = array($like => array(
-				'value'    => $value,
-				'position' => $position,
-			));
-		}
-
-		array_push($this->_ion_like, $like);
+		array_push($this->_ion_like, array(
+			'like'     => $like,
+			'value'    => $value,
+			'position' => $position
+		));
 
 		return $this;
 	}
@@ -1328,7 +1374,7 @@ class Ion_auth_model extends CI_Model
 		{
 			foreach ($this->_ion_like as $like)
 			{
-				$this->db->or_like($like);
+				$this->db->or_like($like['like'], $like['value'], $like['position']);
 			}
 
 			$this->_ion_like = array();
@@ -1719,7 +1765,8 @@ class Ion_auth_model extends CI_Model
 		    $this->identity_column             => $user->{$this->identity_column},
 		    'email'                => $user->email,
 		    'user_id'              => $user->id, //everyone likes to overwrite id so we'll use user_id
-		    'old_last_login'       => $user->last_login
+		    'old_last_login'       => $user->last_login,
+		    'last_check'           => time(),
 		);
 
 		$this->session->set_userdata($session_data);
